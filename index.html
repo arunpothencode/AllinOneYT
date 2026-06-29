@@ -310,7 +310,47 @@
       z-index: 2;
       cursor: pointer;
     }
+    .click-catcher::after {
+      content: '▶  Click to start';
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.35);
+      background: rgba(0,0,0,0.45);
+      padding: 4px 12px;
+      border-radius: 20px;
+      pointer-events: none;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
     .click-catcher.pass { pointer-events: none; }
+    .click-catcher.pass::after { display: none; }
+
+    /* Post-click content-warning hint */
+    .slot-warn-hint {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      background: rgba(20,20,20,0.88);
+      color: rgba(255,255,255,0.85);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 20px;
+      white-space: nowrap;
+      pointer-events: none;
+      border: 1px solid rgba(255,255,255,0.08);
+      animation: hint-fade 5s ease forwards;
+    }
+    @keyframes hint-fade {
+      0%,50% { opacity: 1; }
+      100%    { opacity: 0; }
+    }
 
     /* ── Disabled Placeholder ────────────────────────── */
     .slot-off {
@@ -411,7 +451,7 @@
   /* ── State ───────────────────────────────────────────────── */
   const DEFAULTS = [
     { id: 'nObUcHKZEGY', channel: 'Loading…', enabled: true },
-    { id: '4wExBtPQ-JA', channel: 'Loading…', enabled: true },
+    { id: 's0LLVQeMmtU', channel: 'Loading…', enabled: true },
     { id: '1wECsnGZcfc', channel: 'Loading…', enabled: true },
     { id: 'RbxEftGN584', channel: 'Loading…', enabled: true },
     { id: 'tgBTspqA5nY', channel: 'Loading…', enabled: true },
@@ -622,6 +662,19 @@
     if (c) c.classList.add('pass');
     activeAudio = i;
     updateAudioIndicators();
+    showWarnHint(i);
+  }
+
+  function showWarnHint(i) {
+    const content = document.getElementById(`slot-content-${i}`);
+    if (!content) return;
+    const old = content.querySelector('.slot-warn-hint');
+    if (old) old.remove();
+    const hint = document.createElement('div');
+    hint.className = 'slot-warn-hint';
+    hint.textContent = 'If you see a content warning — click "I understand" inside the player';
+    content.appendChild(hint);
+    setTimeout(() => hint.remove(), 5500);
   }
 
   function toggleFocus(i) {
