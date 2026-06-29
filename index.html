@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OneTube Malayalam News</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --bg: #0f0f0f;
@@ -78,6 +77,13 @@
 
     .header-right { display: flex; align-items: center; gap: 8px; }
 
+    .hdr-sep {
+      width: 1px;
+      height: 22px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
     /* ── Header Buttons ──────────────────────────────── */
     button {
       cursor: pointer;
@@ -112,6 +118,23 @@
     }
     .hdr-btn-off:hover { background: rgba(255,60,60,0.2); color: #ff8080; }
 
+    /* ── Layout Switcher ─────────────────────────────── */
+    .layout-group { display: flex; gap: 3px; }
+
+    .layout-btn {
+      padding: 5px 9px;
+      background: var(--surface2);
+      color: #555;
+      border-radius: 5px;
+      font-size: 11px;
+      letter-spacing: 0.2px;
+    }
+    .layout-btn:hover { background: var(--surface3); color: var(--text-muted); }
+    .layout-btn.layout-active {
+      background: rgba(59,130,246,0.18);
+      color: var(--blue);
+    }
+
     /* ── Grid ────────────────────────────────────────── */
     .grid {
       flex: 1;
@@ -122,6 +145,7 @@
       padding: var(--gap);
       background: #111;
       min-height: 0;
+      transition: grid-template-columns 0.2s, grid-template-rows 0.2s;
     }
 
     /* ── Video Slot ──────────────────────────────────── */
@@ -136,6 +160,7 @@
     }
 
     .video-slot.disabled { opacity: 0.4; }
+    .video-slot.hidden   { display: none; }
 
     .video-slot.audio-active { border-color: var(--blue); }
 
@@ -162,6 +187,24 @@
 
     .video-slot.audio-active .slot-header {
       background: rgba(59,130,246,0.14);
+    }
+
+    /* ── Live Pulse Dot ──────────────────────────────── */
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .video-slot.audio-active .live-dot {
+      opacity: 1;
+      animation: pulse-dot 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1);   opacity: 1; }
+      50%       { transform: scale(0.6); opacity: 0.45; }
     }
 
     .slot-badge {
@@ -277,49 +320,34 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      color: #555;
+      color: #888;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    .slot-off::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
     }
     .slot-off-ring {
       width: 34px; height: 34px;
-      border: 2px solid #3a3a3a;
+      border: 2px solid #555;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
+      z-index: 1;
     }
-    .slot-off-text { font-size: 10px; font-weight: 600; letter-spacing: 1px; }
-
-    /* ── Google Sign-In ─────────────────────────────────── */
-    #g-user {
-      display: none;
-      align-items: center;
-      gap: 8px;
-    }
-
-    #g-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 1px solid var(--border);
-    }
-
-    #g-name {
-      font-size: 12px;
+    .slot-off-text {
+      font-size: 10px;
       font-weight: 600;
-      color: var(--text);
-      max-width: 90px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      letter-spacing: 1px;
+      position: relative;
+      z-index: 1;
     }
-
-    #g-signout {
-      padding: 5px 10px;
-      background: var(--surface2);
-      color: var(--text-muted);
-    }
-    #g-signout:hover { background: var(--surface3); color: var(--text); }
 
     /* ── Scrollbar ───────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
@@ -329,8 +357,10 @@
     /* ── Mobile ──────────────────────────────────────── */
     @media (max-width: 700px) {
       body { overflow: auto; height: auto; }
-      .grid { grid-template-columns: 1fr; grid-template-rows: repeat(9, auto); min-height: auto; }
-      .video-slot { height: 260px; }
+      .grid { grid-template-columns: 1fr !important; grid-template-rows: repeat(9, auto) !important; min-height: auto; }
+      .video-slot { height: 260px; display: flex !important; }
+      .layout-group { display: none; }
+      .hdr-sep { display: none; }
     }
   </style>
 </head>
@@ -343,12 +373,12 @@
     <span>One<em>Tube</em> Malayalam News</span>
   </div>
   <div class="header-right">
-    <div id="g-signin-btn"></div>
-    <div id="g-user">
-      <img id="g-avatar" src="" alt="avatar" />
-      <span id="g-name"></span>
-      <button id="g-signout" class="hdr-btn" onclick="signOut()">Sign out</button>
+    <div class="layout-group">
+      <button class="layout-btn" onclick="setLayout(0)" title="1 stream">1×1</button>
+      <button class="layout-btn" onclick="setLayout(1)" title="4 streams">2×2</button>
+      <button class="layout-btn layout-active" onclick="setLayout(2)" title="9 streams">3×3</button>
     </div>
+    <div class="hdr-sep"></div>
     <button class="hdr-btn hdr-btn-on" onclick="setAllEnabled(true)">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
@@ -392,8 +422,11 @@
   ];
 
   const slots = DEFAULTS.map(v => ({ ...v }));
-  let activeAudio = -1;   // index of currently unmuted slot (-1 = all muted)
-  let fsSlot = -1;        // index of fullscreen slot (-1 = none)
+  let activeAudio = -1;
+  let fsSlot      = -1;
+  let currentLayout = 2; // 0=1×1, 1=2×2, 2=3×3
+
+  const LAYOUT_COLS = [1, 2, 3];
 
   /* ── Persistence ─────────────────────────────────────────── */
   function saveState() {
@@ -403,9 +436,31 @@
   function loadState() {
     try {
       const saved = JSON.parse(localStorage.getItem('onetube_enabled'));
-      if (Array.isArray(saved) && saved.length === slots.length) {
+      if (Array.isArray(saved) && saved.length === slots.length)
         saved.forEach((en, i) => { slots[i].enabled = Boolean(en); });
-      }
+    } catch {}
+  }
+
+  function saveChannelNames() {
+    localStorage.setItem('onetube_channels', JSON.stringify(slots.map(s => s.channel)));
+  }
+
+  function loadChannelNames() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('onetube_channels'));
+      if (Array.isArray(saved) && saved.length === slots.length)
+        saved.forEach((name, i) => { if (name && name !== 'Loading…') slots[i].channel = name; });
+    } catch {}
+  }
+
+  function saveLayout() {
+    localStorage.setItem('onetube_layout', currentLayout);
+  }
+
+  function loadLayout() {
+    try {
+      const saved = parseInt(localStorage.getItem('onetube_layout'));
+      if (!isNaN(saved) && saved >= 0 && saved <= 2) currentLayout = saved;
     } catch {}
   }
 
@@ -426,7 +481,7 @@
     } catch {}
   }
 
-  function iframe(id) {
+  function makeIframe(id) {
     const f = document.createElement('iframe');
     f.src = embedSrc(id);
     f.loading = 'lazy';
@@ -438,6 +493,33 @@
   function getIframe(i) { return document.querySelector(`#slot-content-${i} iframe`); }
   function getCatcher(i) { return document.querySelector(`#slot-content-${i} .click-catcher`); }
 
+  function thumbUrl(id) {
+    return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+  }
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  function setLayout(idx) {
+    currentLayout = idx;
+    const cols = LAYOUT_COLS[idx];
+    const visible = cols * cols;
+    const grid = document.getElementById('grid');
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows    = `repeat(${cols}, 1fr)`;
+    slots.forEach((_, i) => {
+      const el = document.getElementById(`slot-${i}`);
+      if (!el) return;
+      el.classList.toggle('hidden', i >= visible);
+    });
+    document.querySelectorAll('.layout-btn').forEach((btn, i) => {
+      btn.classList.toggle('layout-active', i === idx);
+    });
+    saveLayout();
+  }
+
+  function applyLayout() {
+    setLayout(currentLayout);
+  }
+
   /* ── Render ──────────────────────────────────────────────── */
   function render() {
     const grid = document.getElementById('grid');
@@ -448,6 +530,7 @@
       el.id = `slot-${i}`;
       el.innerHTML = `
         <div class="slot-header">
+          <span class="live-dot"></span>
           <span class="slot-badge">${i + 1}</span>
           <span class="slot-channel" id="slot-ch-${i}">${esc(slot.channel)}</span>
           <button class="slot-btn" id="slot-mute-${i}"
@@ -468,27 +551,33 @@
         <div class="slot-content" id="slot-content-${i}"></div>
       `;
       grid.appendChild(el);
-      buildContent(i);
+      /* Stagger iframe load: first 3 immediate, next 3 after 600ms, last 3 after 1200ms */
+      buildContent(i, i < 3 ? 0 : i < 6 ? 600 : 1200);
     });
+    applyLayout();
   }
 
-  function buildContent(i) {
+  function buildContent(i, delay = 0) {
     const content = document.getElementById(`slot-content-${i}`);
     content.innerHTML = '';
     if (!slots[i].enabled) {
-      content.innerHTML = `
-        <div class="slot-off">
-          <div class="slot-off-ring">${ICON.off}</div>
-          <div class="slot-off-text">CHANNEL OFF</div>
-        </div>`;
+      const div = document.createElement('div');
+      div.className = 'slot-off';
+      div.style.backgroundImage = `url(${thumbUrl(slots[i].id)})`;
+      div.innerHTML = `<div class="slot-off-ring">${ICON.off}</div><div class="slot-off-text">CHANNEL OFF</div>`;
+      content.appendChild(div);
       return;
     }
-    /* Click-catcher: captures first click → activates audio for this slot */
     const catcher = document.createElement('div');
     catcher.className = 'click-catcher' + (activeAudio === i ? ' pass' : '');
     catcher.onclick = () => activateAudio(i);
-    content.appendChild(catcher);
-    content.appendChild(iframe(slots[i].id));
+
+    const load = () => {
+      content.appendChild(catcher);
+      content.appendChild(makeIframe(slots[i].id));
+    };
+
+    delay > 0 ? setTimeout(load, delay) : load();
   }
 
   /* ── Toggle slot enabled/disabled ───────────────────────── */
@@ -497,11 +586,7 @@
     const slotEl = document.getElementById(`slot-${i}`);
     slotEl.classList.toggle('disabled', !enabled);
     slotEl.querySelector('.tog-lbl').textContent = enabled ? 'ON' : 'OFF';
-
-    if (!enabled && activeAudio === i) {
-      activeAudio = -1;
-      updateAudioIndicators();
-    }
+    if (!enabled && activeAudio === i) { activeAudio = -1; updateAudioIndicators(); }
     buildContent(i);
     saveState();
   }
@@ -523,23 +608,18 @@
     if (changed) saveState();
   }
 
-  /* ── Audio focus (unmute on click) ───────────────────────── */
+  /* ── Audio focus ─────────────────────────────────────────── */
   function activateAudio(i) {
     if (!slots[i].enabled) return;
-
-    /* Mute all others, restore their catchers */
     slots.forEach((slot, j) => {
       if (j === i || !slot.enabled) return;
       postMute(getIframe(j), true);
       const c = getCatcher(j);
       if (c) c.classList.remove('pass');
     });
-
-    /* Unmute this slot, make catcher pass-through */
     postMute(getIframe(i), false);
     const c = getCatcher(i);
     if (c) c.classList.add('pass');
-
     activeAudio = i;
     updateAudioIndicators();
   }
@@ -547,7 +627,6 @@
   function toggleFocus(i) {
     if (!slots[i].enabled) return;
     if (activeAudio === i) {
-      /* Already active — mute it → no active slot */
       postMute(getIframe(i), true);
       const c = getCatcher(i);
       if (c) c.classList.remove('pass');
@@ -595,8 +674,12 @@
     fsSlot = -1;
   }
 
+  /* ── Keyboard shortcuts ──────────────────────────────────── */
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && fsSlot >= 0) exitFs();
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'Escape' && fsSlot >= 0) { exitFs(); return; }
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= 9) toggleFocus(n - 1);
   });
 
   /* ── Fetch real channel names via oEmbed ─────────────────── */
@@ -610,67 +693,24 @@
     } catch { return null; }
   }
 
-  /* ── Google Sign-In ─────────────────────────────────────── */
-  // TODO: Replace with your Google OAuth Client ID from console.cloud.google.com
-  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
-
-  function parseJwt(token) {
-    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(b64));
-  }
-
-  function showUser(payload) {
-    document.getElementById('g-signin-btn').style.display = 'none';
-    const userEl = document.getElementById('g-user');
-    userEl.style.display = 'flex';
-    document.getElementById('g-avatar').src = payload.picture || '';
-    document.getElementById('g-name').textContent = payload.given_name || payload.name || '';
-  }
-
-  function handleCredentialResponse(response) {
-    const payload = parseJwt(response.credential);
-    sessionStorage.setItem('g_token', response.credential);
-    showUser(payload);
-  }
-
-  function signOut() {
-    google.accounts.id.disableAutoSelect();
-    sessionStorage.removeItem('g_token');
-    document.getElementById('g-user').style.display = 'none';
-    document.getElementById('g-signin-btn').style.display = 'block';
-  }
-
-  window.onGoogleLibraryLoad = function () {
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleCredentialResponse,
-      auto_select: false,
-    });
-    google.accounts.id.renderButton(
-      document.getElementById('g-signin-btn'),
-      { theme: 'filled_black', size: 'medium', shape: 'pill', text: 'signin_with' }
-    );
-
-    // Restore session from previous page load
-    const stored = sessionStorage.getItem('g_token');
-    if (stored) {
-      try { showUser(parseJwt(stored)); } catch { sessionStorage.removeItem('g_token'); }
-    }
-  };
-
   /* ── Boot ────────────────────────────────────────────────── */
   loadState();
+  loadChannelNames();
+  loadLayout();
   render();
 
-  /* Fetch channel names in background — updates labels without touching iframes */
+  /* Fetch fresh channel names — update labels and persist */
   (async () => {
+    let updated = false;
     await Promise.all(slots.map(async (slot, i) => {
       const name = await fetchChannelName(slot.id);
       if (!name) return;
       slots[i].channel = name;
+      updated = true;
       const el = document.getElementById(`slot-ch-${i}`);
       if (el) el.textContent = name;
     }));
+    if (updated) saveChannelNames();
   })();
 </script>
 </body>
