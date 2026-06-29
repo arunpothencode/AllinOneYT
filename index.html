@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OneTube Malayalam News</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --bg: #0f0f0f;
@@ -288,6 +289,38 @@
     }
     .slot-off-text { font-size: 10px; font-weight: 600; letter-spacing: 1px; }
 
+    /* ── Google Sign-In ─────────────────────────────────── */
+    #g-user {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #g-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border);
+    }
+
+    #g-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      max-width: 90px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #g-signout {
+      padding: 5px 10px;
+      background: var(--surface2);
+      color: var(--text-muted);
+    }
+    #g-signout:hover { background: var(--surface3); color: var(--text); }
+
     /* ── Scrollbar ───────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -310,6 +343,12 @@
     <span>One<em>Tube</em> Malayalam News</span>
   </div>
   <div class="header-right">
+    <div id="g-signin-btn"></div>
+    <div id="g-user">
+      <img id="g-avatar" src="" alt="avatar" />
+      <span id="g-name"></span>
+      <button id="g-signout" class="hdr-btn" onclick="signOut()">Sign out</button>
+    </div>
     <button class="hdr-btn hdr-btn-on" onclick="setAllEnabled(true)">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
@@ -570,6 +609,54 @@
       return (await r.json()).author_name || null;
     } catch { return null; }
   }
+
+  /* ── Google Sign-In ─────────────────────────────────────── */
+  // TODO: Replace with your Google OAuth Client ID from console.cloud.google.com
+  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
+
+  function parseJwt(token) {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b64));
+  }
+
+  function showUser(payload) {
+    document.getElementById('g-signin-btn').style.display = 'none';
+    const userEl = document.getElementById('g-user');
+    userEl.style.display = 'flex';
+    document.getElementById('g-avatar').src = payload.picture || '';
+    document.getElementById('g-name').textContent = payload.given_name || payload.name || '';
+  }
+
+  function handleCredentialResponse(response) {
+    const payload = parseJwt(response.credential);
+    sessionStorage.setItem('g_token', response.credential);
+    showUser(payload);
+  }
+
+  function signOut() {
+    google.accounts.id.disableAutoSelect();
+    sessionStorage.removeItem('g_token');
+    document.getElementById('g-user').style.display = 'none';
+    document.getElementById('g-signin-btn').style.display = 'block';
+  }
+
+  window.onGoogleLibraryLoad = function () {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse,
+      auto_select: false,
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('g-signin-btn'),
+      { theme: 'filled_black', size: 'medium', shape: 'pill', text: 'signin_with' }
+    );
+
+    // Restore session from previous page load
+    const stored = sessionStorage.getItem('g_token');
+    if (stored) {
+      try { showUser(parseJwt(stored)); } catch { sessionStorage.removeItem('g_token'); }
+    }
+  };
 
   /* ── Boot ────────────────────────────────────────────────── */
   loadState();
