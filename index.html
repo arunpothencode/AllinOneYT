@@ -389,6 +389,72 @@
       z-index: 1;
     }
 
+    /* ── URL Edit Modal ─────────────────────────────────────── */
+    .url-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .url-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      width: 360px;
+      max-width: 92vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    }
+    .url-modal-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .url-modal-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .url-modal-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .url-modal-input:focus { border-color: var(--blue); }
+    .url-modal-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      min-height: 16px;
+      margin-bottom: 12px;
+    }
+    .url-modal-status.error { color: #ff6060; }
+    .url-modal-status.ok    { color: var(--on); }
+    .url-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .url-modal-btn-cancel {
+      padding: 7px 14px;
+      background: var(--surface2);
+      color: var(--text-muted);
+    }
+    .url-modal-btn-cancel:hover { background: var(--surface3); color: var(--text); }
+    .url-modal-btn-ok {
+      padding: 7px 14px;
+      background: rgba(59,130,246,0.18);
+      color: var(--blue);
+    }
+    .url-modal-btn-ok:hover { background: rgba(59,130,246,0.30); }
+
     /* ── Scrollbar ───────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -446,6 +512,7 @@
     expand:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`,
     compress: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>`,
     off:      `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`,
+    edit:     `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
   };
 
   /* ── State ───────────────────────────────────────────────── */
@@ -501,6 +568,18 @@
     try {
       const saved = parseInt(localStorage.getItem('onetube_layout'));
       if (!isNaN(saved) && saved >= 0 && saved <= 2) currentLayout = saved;
+    } catch {}
+  }
+
+  function saveIds() {
+    localStorage.setItem('onetube_ids', JSON.stringify(slots.map(s => s.id)));
+  }
+
+  function loadIds() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('onetube_ids'));
+      if (Array.isArray(saved) && saved.length === slots.length)
+        saved.forEach((id, i) => { if (id) slots[i].id = id; });
     } catch {}
   }
 
@@ -576,6 +655,10 @@
           <button class="slot-btn" id="slot-mute-${i}"
                   onclick="toggleFocus(${i})" title="Unmute this channel">
             ${ICON.muted}
+          </button>
+          <button class="slot-btn" id="slot-edit-${i}"
+                  onclick="openUrlEdit(${i})" title="Change channel URL">
+            ${ICON.edit}
           </button>
           <button class="slot-btn" id="slot-fs-${i}"
                   onclick="toggleFullscreen(${i})" title="Fullscreen">
@@ -735,6 +818,84 @@
     if (n >= 1 && n <= 9) toggleFocus(n - 1);
   });
 
+  /* ── URL Edit Modal ─────────────────────────────────────── */
+  function extractYouTubeId(input) {
+    input = input.trim();
+    if (/^[a-zA-Z0-9_-]{6,15}$/.test(input)) return input;
+    try {
+      const u = new URL(input.startsWith('http') ? input : 'https://' + input);
+      if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null;
+      const v = u.searchParams.get('v');
+      if (v) return v;
+      const m = u.pathname.match(/\/(live|embed|v|shorts)\/([a-zA-Z0-9_-]+)/);
+      if (m) return m[2];
+    } catch {}
+    return null;
+  }
+
+  function openUrlEdit(i) {
+    const existing = document.getElementById('url-modal-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'url-modal-overlay';
+    overlay.id = 'url-modal-overlay';
+    const modal = document.createElement('div');
+    modal.className = 'url-modal';
+    modal.innerHTML = `
+      <div class="url-modal-title">Change channel ${i + 1}</div>
+      <div class="url-modal-sub">Paste a YouTube URL or live stream URL</div>
+      <input class="url-modal-input" id="url-modal-input" type="text"
+             placeholder="https://youtube.com/watch?v=... or video ID"
+             value="${esc(slots[i].id)}" autocomplete="off" spellcheck="false" />
+      <div class="url-modal-status" id="url-modal-status"></div>
+      <div class="url-modal-actions">
+        <button class="hdr-btn url-modal-btn-cancel" onclick="closeUrlModal()">Cancel</button>
+        <button class="hdr-btn url-modal-btn-ok" id="url-modal-ok" onclick="submitUrlEdit(${i})">Update</button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeUrlModal(); });
+    const input = document.getElementById('url-modal-input');
+    input.focus();
+    input.select();
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitUrlEdit(i);
+      if (e.key === 'Escape') closeUrlModal();
+    });
+  }
+
+  function closeUrlModal() {
+    const el = document.getElementById('url-modal-overlay');
+    if (el) el.remove();
+  }
+
+  async function submitUrlEdit(i) {
+    const input  = document.getElementById('url-modal-input');
+    const status = document.getElementById('url-modal-status');
+    const okBtn  = document.getElementById('url-modal-ok');
+    const id = extractYouTubeId(input.value);
+    if (!id) {
+      status.className = 'url-modal-status error';
+      status.textContent = 'Could not find a YouTube video ID in that URL.';
+      return;
+    }
+    status.className = 'url-modal-status';
+    status.textContent = 'Fetching channel name…';
+    okBtn.disabled = true;
+    const name = await fetchChannelName(id);
+    okBtn.disabled = false;
+    slots[i].id      = id;
+    slots[i].channel = name || 'Unknown Channel';
+    saveIds();
+    saveChannelNames();
+    const chEl = document.getElementById(`slot-ch-${i}`);
+    if (chEl) chEl.textContent = slots[i].channel;
+    if (activeAudio === i) activeAudio = -1;
+    buildContent(i);
+    closeUrlModal();
+  }
+
   /* ── Fetch real channel names via oEmbed ─────────────────── */
   async function fetchChannelName(id) {
     try {
@@ -748,6 +909,7 @@
 
   /* ── Boot ────────────────────────────────────────────────── */
   loadState();
+  loadIds();
   loadChannelNames();
   loadLayout();
   render();
